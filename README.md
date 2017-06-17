@@ -1,11 +1,12 @@
 # kc-crawler
 This is just an app to crawl something for fun by [https://github.com/bda-research/node-crawler](https://github.com/bda-research/node-crawler).
 
-#Redis
+# Redis
 Would need to install Redis:
 ```
 https://redis.io/download
 ```
+use the following command to clear all chache data in Redis
 ```
 redis-cli flushall
 ```

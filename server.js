@@ -36,7 +36,7 @@ const wrapper = (url, d) => {
         uri: _url,
         callback: (error, res, done) => {
           if(error){
-            console.log('err occurred', _url)
+            // console.log('err occurred', _url)
           }else{
             try {
               const dom = new JSDOM(res.body);
@@ -56,7 +56,7 @@ const wrapper = (url, d) => {
                 seen.exists(a.href, {
                   callback: (err, result) => {
                     if(err){
-                      console.error(err);
+                      // console.error(err);
                     }else{
                       if (!result[0]) {
                         const u = (a.href.indexOf('/') === 0 && a.href.indexOf('//') !== 0) ? 'https://' + res.request.host + a.href : a.href;
@@ -90,5 +90,8 @@ c.on('drain',function(){
   console.log('########################################')
   console.log('########################################')
   console.log('##########', `Carawling finished. total page: ${c.queueSize}`, '##########');
-  console.log('Relative urls:', relativeUrl)
+  // console.log('Relative urls:', relativeUrl)
+  _.map(relativeUrl, (o) => {
+    console.log(o)
+  })
 });
