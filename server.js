@@ -1,6 +1,7 @@
-const { DEPTH, KEY_WORDS, TARGET_URL } = require('./constants')
+// const { DEPTH, KEY_WORDS, TARGET_URL } = require('./constants')
 const _ = require('lodash')
 const Crawler = require("crawler");
+const numeral = require('numeral');
 
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
@@ -19,79 +20,80 @@ console.log('Starting to crawl stuff...')
 
 
 const c = new Crawler({
-    maxConnections : 10,
-    // rateLimit: 1000,
+    maxConnections : 1,
+    // rateLimit: 3000,
+    // timeout: 60000,
+    // retryTimeout: 180000,
     jQuery: false,
     retries: 0
 });
 
-const wrapper = (url, d) => {
-    if (d > -1) {
-      let _url = url;
-      if (!url || url.indexOf('log') >= 0 || url.indexOf('www.mirrorfiction.com') >= 0) { return; }
-      if (url.indexOf('//') === 0) {
-        _url = 'https:' + _url;
-      }
-      c.queue({
-        uri: _url,
-        callback: (error, res, done) => {
-          if(error){
-            // console.log('err occurred', _url)
-          }else{
-            try {
-              const dom = new JSDOM(res.body);
-              const aLinkArray = dom.window.document.querySelectorAll('a')
-              let isContainTarget = false
-              console.log('site', d, _url)
-              _.map(KEY_WORDS, (o) => {
-                if (res.body.indexOf(o) > -1) {
-                  isContainTarget = true
-                }
-              })
-              if (isContainTarget) {
-                relativeUrl.push( _url)
-              }
+const monthPeriod = [ 1, 13 ]
+const yearPeriod = [ 2001, 2019 ]
+const gameInfo = []
 
-              _.map(aLinkArray, (a) => {
-                seen.exists(a.href, {
-                  callback: (err, result) => {
-                    if(err){
-                      // console.error(err);
-                    }else{
-                      if (!result[0]) {
-                        const u = (a.href.indexOf('/') === 0 && a.href.indexOf('//') !== 0) ? 'https://' + res.request.host + a.href : a.href;
-                        wrapper(u, d - 1);
-                      }
-                    }
-                  }
-                });
-                
-              })
-              dom = null
-            } catch (e) {
-              if (e.message.indexOf('URIError') > -1) {
-                console.log('URIError', a.href)
-              }
-            }
+const fetcher = (m, y) => {
+  c.queue({
+    uri: `http://www.cpbl.com.tw/schedule/index/${y}-${m}-01.html?&date=${y}-${m}-01&gameno=01&sfieldsub=&sgameno=01`,
+
+    callback: (error, res, done) => {
+      if(error){
+        console.error('Error occurred', error)
+      }else{
+        try {
+          //table:nth-child(0)
+          const dom = new JSDOM(res.body);
+          const oneBlock = dom.window.document.querySelectorAll('.one_block')
+  
+          _.map(oneBlock, b => {
+            const stadium = b.querySelector('table:first-child td:nth-child(2)')
+            const gameNo = b.querySelector('table:nth-child(2) th:nth-child(2)')
+            console.log('stadium', stadium.innerHTML, '#', gameNo.innerHTML)
+            gameInfo.push({
+              year: y,
+              stadium: stadium.innerHTML,
+              gameNo: gameNo.innerHTML
+            })
+          })
+  
+          dom = null
+        } catch (e) {
+          if (e.message.indexOf('URIError') > -1) {
+            console.log('URIError', a.href)
           }
-          done();
         }
-      });
+      }
+      done();
     }
+  });
 }
 
+const year = 2018
+// for (let x = yearPeriod[ 0 ]; x < yearPeriod[ 1 ]; x++) {
+  for (let y = monthPeriod[ 0 ]; y < monthPeriod[ 1 ]; y++) {
+    fetcher(y, year)
+  }
+// }
 
-_.map(TARGET_URL, (targUrl) => {
-  wrapper(targUrl, DEPTH);
+c.on('drain', function () {
+  console.log('########################################')
+  console.log('########################################')
+  console.log('########################################')
+  console.log('##########', `Carawling finished. Count: ${gameInfo.length}`, '##########');
+
+  const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+  const csvWriter = createCsvWriter({
+      path: `/Users/user/Downloads/gameInfo-${year}.csv`,
+      header: [
+        { id: 'gameNo', title: 'gameNo'},
+        { id: 'year', title: 'year'},
+        { id: 'stadium', title: 'stadium'},
+      ]
+  });
+
+  csvWriter.writeRecords(_.sortBy(gameInfo, g => numeral(g.gameNo).value()))       // returns a promise
+  .then(() => {
+    console.log('...Done');
+    process.exit();
+  });  
 })
-
-c.on('drain',function(){
-  console.log('########################################')
-  console.log('########################################')
-  console.log('########################################')
-  console.log('##########', `Carawling finished. total page: ${c.queueSize}`, '##########');
-  // console.log('Relative urls:', relativeUrl)
-  _.map(relativeUrl, (o) => {
-    console.log(o)
-  })
-});
